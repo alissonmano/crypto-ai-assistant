@@ -6,6 +6,7 @@ import ccxt
 import requests
 import os
 import time
+from datetime import datetime
 from ta.momentum import RSIIndicator
 from ta.trend import SMAIndicator
 from ta.volatility import AverageTrueRange
