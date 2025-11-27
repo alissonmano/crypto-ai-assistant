@@ -179,20 +179,22 @@ class TradeManager:
 
     def _resolve_symbol(self, symbol):
         """Helper to fix ticker formats (e.g. BTC-USD -> BTC/USDT)"""
-        # 1. Convert Yahoo format (-) to Crypto format (/)
-        symbol = symbol.replace("-", "/")
+        # 1. Normalize separator
+        std_symbol = symbol.replace("-", "/") # e.g. BTC/USDT
         
-        # 2. Check price to see if symbol is valid. 
-        # If BTC/USD fails, try BTC/USDT (most common for Binance)
-        price = self._fetch_price_safe(symbol)
-        if price > 0:
-            return symbol, price
+        # 2. Build candidate list intelligently
+        candidates = [std_symbol]
+        
+        if std_symbol.endswith("/USD"):
+            candidates.append(std_symbol.replace("/USD", "/USDT"))
+        elif std_symbol.endswith("/USDT"):
+            candidates.append(std_symbol.replace("/USDT", "/USD"))
             
-        if symbol.endswith("/USD"):
-            alt_symbol = symbol.replace("/USD", "/USDT")
-            price = self._fetch_price_safe(alt_symbol)
+        # 3. Try candidates
+        for cand in candidates:
+            price = self._fetch_price_safe(cand)
             if price > 0:
-                return alt_symbol, price
+                return cand, price
         
         return None, 0.0
 
@@ -224,7 +226,7 @@ class TradeManager:
         valid_symbol, price = self._resolve_symbol(symbol)
         
         if not valid_symbol or price <= 0:
-            return f"❌ Error: Could not verify price for {symbol}. Try using {symbol.replace('USD','USDT')}."
+            return f"❌ Error: Could not verify price for {symbol}. Ensure the pair exists on the exchange (e.g. try {symbol.replace('-', '/')})."
 
         amount_coin = amount_usd / price
 
