@@ -185,6 +185,7 @@ class TradeManager:
         # 2. Build candidate list intelligently
         candidates = [std_symbol]
         
+        # Common crypto mis-matches
         if std_symbol.endswith("/USD"):
             candidates.append(std_symbol.replace("/USD", "/USDT"))
         elif std_symbol.endswith("/USDT"):
@@ -200,10 +201,24 @@ class TradeManager:
 
     def _fetch_price_safe(self, symbol):
         """Internal method to try fetching price without crashing."""
+        # Try CCXT first (Primary Source)
         exchange_ref = self.exchange if (self.exchange and not self.dry_run) else ccxt.binance()
         try:
             return exchange_ref.fetch_ticker(symbol)['last']
-        except:
+        except Exception as e:
+            # Fallback for Paper Trading: Try fetching from Yahoo Finance if Exchange fails
+            # This is useful if running locally with IP blocks on Binance
+            if self.dry_run:
+                try:
+                    # Convert BTC/USDT -> BTC-USD for YFinance logic
+                    yf_sym = symbol.replace("/", "-").replace("T", "") # Crude approx for fallback
+                    if "USD" not in yf_sym: yf_sym += "-USD"
+                    
+                    data = yf.Ticker(yf_sym).history(period="1d")
+                    if not data.empty:
+                        return data['Close'].iloc[-1]
+                except:
+                    pass
             return 0.0
 
     def get_ticker_price(self, symbol):
@@ -226,7 +241,8 @@ class TradeManager:
         valid_symbol, price = self._resolve_symbol(symbol)
         
         if not valid_symbol or price <= 0:
-            return f"❌ Error: Could not verify price for {symbol}. Ensure the pair exists on the exchange (e.g. try {symbol.replace('-', '/')})."
+            suggested = symbol.replace('-', '/')
+            return f"❌ Error: Could not verify price for {symbol}. Exchange API might be unreachable for this pair. Try: {suggested}T or {suggested}."
 
         amount_coin = amount_usd / price
 
