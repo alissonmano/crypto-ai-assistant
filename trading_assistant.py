@@ -283,8 +283,14 @@ class TradeManager:
 with st.sidebar:
     st.title("🦅 Crypto Commander")
     
-    # Ticker Input
-    ticker_input = st.text_input("Asset", value="BTC-USD", help="Yahoo Finance Ticker Format").upper()
+    # Asset Selection with Dropdown
+    popular_assets = ["BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD", "BNB-USD", "DOGE-USD", "ADA-USD", "LINK-USD", "LTC-USD", "Custom"]
+    selected_asset = st.selectbox("Select Asset", popular_assets)
+    
+    if selected_asset == "Custom":
+        ticker_input = st.text_input("Enter Ticker", value="BTC-USD", help="Yahoo Finance Ticker Format").upper()
+    else:
+        ticker_input = selected_asset
     
     # Mode Toggle
     st.divider()
