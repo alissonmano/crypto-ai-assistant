@@ -53,16 +53,35 @@ class MarketData:
     @st.cache_data(ttl=300) # Cache data for 5 minutes to save bandwidth/speed
     def fetch_data(_self, ticker, period="2y", interval="1d"):
         try:
-            # Download data
-            df = yf.download(ticker, period=period, interval=interval, progress=False)
-            
-            # Validation: Check if empty
-            if df.empty:
+            # Internal helper to attempt download
+            def try_download(symbol):
+                data = yf.download(symbol, period=period, interval=interval, progress=False)
+                if not data.empty:
+                    # Handle MultiIndex (yfinance structure)
+                    if isinstance(data.columns, pd.MultiIndex):
+                        data.columns = data.columns.get_level_values(0)
+                    return data
                 return None
+
+            # Generate list of ticker variations to try
+            # Yahoo Finance prefers "BTC-USD" but users often type "BTC/USDT" or "BTC-USDT"
+            candidates = [
+                ticker,                                             # 1. Exact match
+                ticker.replace("USDT", "USD"),                      # 2. Try USD instead of USDT
+                ticker.replace("/", "-"),                           # 3. Try Dash instead of Slash
+                ticker.replace("/", "-").replace("USDT", "USD"),    # 4. Try Dash AND USD
+                f"{ticker}-USD"                                     # 5. Try appending -USD (e.g. for "BTC")
+            ]
             
-            # Cleaning: Handle MultiIndex columns (common yfinance issue)
-            if isinstance(df.columns, pd.MultiIndex):
-                df.columns = df.columns.get_level_values(0)
+            df = None
+            for symbol in candidates:
+                df = try_download(symbol)
+                if df is not None:
+                    break
+
+            # Validation: Check if empty
+            if df is None or df.empty:
+                return None
             
             # Validation: Check for required columns
             required_cols = ['Open', 'High', 'Low', 'Close', 'Volume']
