@@ -85,7 +85,8 @@ class MarketData:
                 return None
             
             # Validation: Check for required columns
-            required_cols = ['Open', 'High', 'Low', 'Close', 'Volume']
+            # Removed Volume from strict requirement to support more assets (like Forex/Indices)
+            required_cols = ['Open', 'High', 'Low', 'Close']
             if not all(col in df.columns for col in required_cols):
                 return None
 
@@ -214,11 +215,11 @@ class TradeManager:
                     # Robust Conversion for YFinance Fallback
                     if symbol.endswith("/USDT"):
                         yf_sym = symbol.replace("/USDT", "-USD")
-                    elif symbol.endswith("/USD"):
-                        yf_sym = symbol.replace("/", "-")
                     else:
                         yf_sym = symbol.replace("/", "-")
-                        if "USD" not in yf_sym:
+                        # Only append -USD if it looks like a raw token symbol (no hyphen)
+                        # Prevents "BTC-BRL-USD" error
+                        if "-" not in yf_sym and "USD" not in yf_sym:
                              yf_sym += "-USD"
                     
                     data = yf.Ticker(yf_sym).history(period="1d")
